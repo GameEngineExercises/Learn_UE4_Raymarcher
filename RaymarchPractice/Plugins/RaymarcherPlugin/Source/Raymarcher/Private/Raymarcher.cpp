@@ -7,6 +7,9 @@
 void FRaymarcherModule::StartupModule()
 {
 	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
+	FString ShaderDir = FPaths::Combine(
+		FPaths::ProjectPluginsDir(), TEXT("RaymarcherPlugin/Source/Raymarcher/Shaders"));
+	AddShaderSourceDirectoryMapping("/Raymarcher", ShaderDir);
 }
 
 void FRaymarcherModule::ShutdownModule()
