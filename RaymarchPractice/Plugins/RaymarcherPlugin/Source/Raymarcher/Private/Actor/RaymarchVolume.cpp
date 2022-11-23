@@ -25,6 +25,19 @@ ARaymarchVolume::ARaymarchVolume()
 		StaticMeshComponent->SetupAttachment(RootComponent);
 	}
 
+	static ConstructorHelpers::FObjectFinder<UMaterial> IntensityMaterial(
+		TEXT("/RaymarcherPlugin/Materials/M_Intensity_Raymarch.M_Intensity_Raymarch"));
+
+	if(IntensityMaterial.Succeeded())
+	{
+		IntensityRaymarchMaterialBase = IntensityMaterial.Object;
+	}
+
+    if(IntensityRaymarchMaterialBase)
+    {
+        StaticMeshComponent->SetMaterial(0, IntensityRaymarchMaterialBase);	
+	}
+
 }
 
 // Called when the game starts or when spawned
