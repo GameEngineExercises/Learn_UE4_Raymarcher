@@ -1,0 +1,79 @@
+// Licensed under MIT license - See License.txt for details.
+// Special credits go to : Temaran (compute shader tutorial), TheHugeManatee (original concept, supervision) Ryan Brucks
+// (original raymarching code) and tommybazar (TBRaymarcherPlugin).
+
+// NUZEROVI (Learn UE4_Raymarcher from TBRaymarcherPlugin)
+
+#pragma once
+
+// Performs raymarch cube setup for this pixel. Returns the position of entry to the cube in rgb channels 
+// and thickness of the cube in alpha. All values returned are in UVW space.
+float4 PerformRaymarchCubeSetup(FMaterialPixelParameters MaterialParameters)
+{
+    // Get scene depth at this pixel.
+    float LocalSceneDepth = CalcSceneDepth(ScreenAlignedPosition(GetScreenPosition(MaterialParameters)));
+    
+    // Get camera forward vector in world space.
+    float3 CameraFWDVecWorld = mul(float3(0.00000000, 0.00000000, 1.00000000), ResolvedView.ViewToTranslatedWorld);
+
+    // Get world space vector going from camera center to current scene depth.
+    float3 WorldDepthVec = normalize(MaterialParameters.CameraVector) * LocalSceneDepth;
+
+    // Transform this vector into the box's local space
+    WorldDepthVec = mul(WorldDepthVec, GetPrimitiveData(MaterialParameters.PrimitiveId).WorldToLocal);
+
+    // Get actual depth in local space, account for mesh bounds (by default, we use a centered 1x1x1 cube mesh, so this is unnecessary)
+    LocalSceneDepth = length(WorldDepthVec);
+    
+    // We use unit cubes now, uncomment this if you want to use non-unit meshes for some reason.
+    // LocalSceneDepth /= (GetPrimitiveData(MaterialParameters.PrimitiveId).LocalObjectBoundsMax.x * 2);
+
+    // Account for difference between camera center vector and camera-to-pixel depth
+    LocalSceneDepth /= abs(dot(CameraFWDVecWorld, MaterialParameters.CameraVector));
+
+    // Get cam pos and vector into local space too.
+    float3 LocalCamPos = mul(float4(ResolvedView.WorldCameraOrigin, 1.00000000), (GetPrimitiveData(MaterialParameters.PrimitiveId).WorldToLocal)).xyz;
+    float3 LocalCamVec = -normalize(mul(MaterialParameters.CameraVector, GetPrimitiveData(MaterialParameters.PrimitiveId).WorldToLocal));
+
+    // Transform camera pos from local to UVW coords (from +-0.5 to [0 - 1]).
+    LocalCamPos += 0.5;
+    float3 InverseRayDirVec = 1 / LocalCamVec;
+
+    // Because now we're in texture space where our box is at [0, 1] on each axis, it's easy to get intersections.
+    // LowIntersections will have the distance of the ray in X,Y,Z when it hits 0 on the respective axis.
+    // HighIntersections will have the distance of the ray in X,Y,Z when it reaches 1 on the respective axis.
+    float3 LowIntersections = (0 - LocalCamPos) * InverseRayDirVec;
+    float3 HighIntersections = (1 - LocalCamPos) * InverseRayDirVec;
+
+    // Get closest and furthest intersections
+    float3 ClosestIntersections = min(LowIntersections, HighIntersections);
+    float3 FurthestIntersections = max(LowIntersections, HighIntersections);
+
+    // The actual intersections of the box are the 2 values in the middle of the pack.
+    // T0 (entry) = the farthest of the closest intersections
+    float t0 = max(ClosestIntersections.x, max(ClosestIntersections.y, ClosestIntersections.z));
+    // T1 (exit) = the closest of the furthest intersections
+    float t1 = min(FurthestIntersections.x, min(FurthestIntersections.y, FurthestIntersections.z));
+
+    // Make sure the entry point is not behind the camera
+    t0 = max(0, t0);
+
+    // Make sure the exit point is not behind other scene geometry.
+    t1 = min(t1, LocalSceneDepth);
+
+    // Calculate box thickness at this pixel (in local space).
+    float BoxThickness = max(0, t1 - t0);
+
+    // Get entry position in UVW space.
+    float3 EntryPos = LocalCamPos + (t0 * LocalCamVec);
+    
+    return float4(EntryPos, BoxThickness);
+}
+
+// Jitter position by random temporal jitter (in the direction of the camera).
+void JitterEntryPos(inout float3 EntryPos, float3 LocalCamVec, FMaterialPixelParameters MaterialParameters)
+{
+    int3 RandomPos = int3(MaterialParameters.SvPosition.xy, View.StateFrameIndexMod8);
+    float rand = float(Rand3DPCG16(RandomPos).x) / 0xffff;
+    EntryPos -= LocalCamVec * rand;
+}

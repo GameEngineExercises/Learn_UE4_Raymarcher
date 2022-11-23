@@ -1,0 +1,12 @@
+// Licensed under MIT license - See License.txt for details.
+// Special credits go to : Temaran (compute shader tutorial), TheHugeManatee (original concept, supervision) Ryan Brucks
+// (original raymarching code) and tommybazar (TBRaymarcherPlugin).
+
+// NUZEROVI (Learn UE4_Raymarcher from TBRaymarcherPlugin)
+
+#pragma once
+
+float GetTransferFuncPosition(float Value, float WindowCenter, float WindowWidth)
+{
+	return (Value - WindowCenter + (WindowWidth / 2.0)) / WindowWidth;
+}
