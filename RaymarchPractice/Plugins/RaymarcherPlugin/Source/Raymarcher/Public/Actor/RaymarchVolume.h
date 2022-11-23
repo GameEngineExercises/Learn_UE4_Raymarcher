@@ -14,6 +14,9 @@ class RAYMARCHER_API ARaymarchVolume : public AActor
 public:	
 	// Sets default values for this actor's properties
 	ARaymarchVolume();
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)	
+	UStaticMeshComponent* StaticMeshComponent;
 
 protected:
 	// Called when the game starts or when spawned
